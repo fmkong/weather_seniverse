@@ -1,0 +1,47 @@
+menu "Seniverse Configuration"
+
+config PLACE_NAME
+    string "Place name"
+    default "beijing"
+
+choice LANGUAGE
+    bool "Language Select"
+    default LANGUAGE_CHINESE_SIMPLIFIED
+    help
+        Select Language.
+
+config LANGUAGE_CHINESE_SIMPLIFIED
+    bool "Chinese Simplified"
+config LANGUAGE_CHINESE_TRADITIONAL
+    bool "Traditional Chinese"
+config LANGUAGE_ENGLISH
+    bool "English"
+endchoice
+
+choice UNIT_SYSTEM
+    bool "Unit System Select"
+    default UNIT_METRIC
+    help
+        Select Unit System.
+
+config UNIT_METRIC
+    bool "Metric System"
+config UNIT_BRITISH_SYSTEM
+    bool "British System"
+endchoice
+
+config LATITUDE
+    string "Latitude"
+    default "39.9"
+
+config LONGITUDE
+    string "Longitude"
+    default "116.3"
+
+config SENIVERSE_API_KEY
+    string "Seniverse API KEY"
+    default "myapikey"
+    help
+    You can get an api key here: https://docs.seniverse.com/api/start/key.html 20 Calls Per Minute for Free
+
+endmenu
