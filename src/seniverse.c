@@ -1,10 +1,39 @@
 #include "seniverse.h"
+#include "seniverse_weather.h"
 
-// extern QueueHandle_t msgQueue;
-// extern EventGroupHandle_t wifi_event_group;
-// extern const int CONNECTED_BIT;
+#define MAX_URL_BUFFER_LEN (256)
+#define MAX_RESP_BUFFER_LEN  (1024*10)
+
+#if CONFIG_LANGUAGE_CHINESE_SIMPLIFIED
+    #define LANGUAGE SENIVERSE_LANGUAGE_CHINESE_SIMP
+#elif CONFIG_LANGUAGE_CHINESE_TRADITIONAL
+    #define LANGUAGE SENIVERSE_LANGUAGE_CHINESE_TRAD
+#elif CONFIG_LANGUAGE_ENGLISH
+    #define LANGUAGE SENIVERSE_LANGUAGE_ENGLISH
+#else
+    #error CONFIG_LANGUAGE is not supported
+#endif
+
+#if CONFIG_UNIT_METRIC
+    #define UNIT SENIVERSE_UNIT_METRIC
+#elif CONFIG_UNIT_BRITISH_SYSTEM
+    #define UNIT SENIVERSE_UNIT_BRITISH
+#else
+    #error CONFIG_UNIT is not supported
+#endif
+
+#define WEB_SERVER "api.seniverse.com"
 
 static const char* TAG = "seniverse";
+/* Root cert for api.seniverse.com, taken from server_root_cert.pem
+   The PEM file was extracted from the output of this command:
+   openssl s_client -showcerts -connect api.seniverse.com:443 </dev/null
+   The CA root cert is the last cert given in the chain of certs.
+   To embed it in the app binary, the PEM file is named
+   in the component.mk COMPONENT_EMBED_TXTFILES variable.
+*/
+extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
+extern const uint8_t server_root_cert_pem_end[] asm("_binary_server_root_cert_pem_end");
 
 static void https_get(const char* url, const char* request, char* buf)
 {
@@ -82,121 +111,34 @@ exit:
         esp_tls_conn_delete(tls);
 }
 
-const char* deg_to_compass(int degrees)
+int seniverse_get_weather(enum SENIVERSE_WEATHER_DATA_TYPE type, char *location,
+                          void *data, int *count, int start, int cnt)
 {
-    int val = floor((degrees / 22.5) + 0.5);
-    const char* arr[] = { "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW" };
-    return arr[(val % 16)];
-}
+    char web_url[MAX_URL_BUFFER_LEN] = {0};
+    char web_req[MAX_URL_BUFFER_LEN] = {0};
+    char resp_buf[MAX_RESP_BUFFER_LEN] = {0};
 
-void get_current_weather_task(void* pvParameters)
-{
+    int url_len = seniverse_get_url_api(type, web_url, MAX_URL_BUFFER_LEN,
+                          CONFIG_SENIVERSE_API_KEY, location,
+                          LANGUAGE, UNIT, start, cnt);
 
-    char buf[1024 * 15];
-
-    https_get(WEB_URL, request, buf);
-
-    // Data can be found after the HTTP header, get te offset to get the data
-    char* data_offset = strstr(buf, "\r\n\r\n");
-
-    ESP_LOGI(TAG, "get resp: %s", data_offset);
-
-    cJSON* json = cJSON_Parse(data_offset);
-
-    if (json == NULL) {
-        ESP_LOGE(TAG, "Error in cJSON_Parse: [%s]\n", cJSON_GetErrorPtr());
+    if (url_len > MAX_URL_BUFFER_LEN - 1 || url_len < 0) {
+        ESP_LOGE(TAG, "web url buffer is not long enough: %d, max %d", url_len,
+                 MAX_URL_BUFFER_LEN);
+        return -1;
     }
 
-    // Get the current weather data from the current object
-    cJSON* json_currently = cJSON_GetObjectItemCaseSensitive(json, "currently");
-
-    cJSON* json_currently_summary = cJSON_GetObjectItemCaseSensitive(json_currently, "summary");
-    if (cJSON_IsString(json_currently_summary) && (json_currently_summary->valuestring != NULL)) {
-        sprintf(summary, "%s", json_currently_summary->valuestring);
+    int req_len = snprintf(web_req, MAX_URL_BUFFER_LEN,
+                            "GET %s HTTP/1.1\r\n"
+                            "Host: %s\r\n"
+                            "User-Agent: esp-idf/1.0 esp32\r\n"
+                            "\r\n", web_url, WEB_SERVER);
+    if (req_len > MAX_URL_BUFFER_LEN - 1 || req_len < 0) {
+        ESP_LOGE(TAG, "web req buffer is not long enough: %d, max %d", req_len,
+                 MAX_URL_BUFFER_LEN);
+        return -1;
     }
 
-    cJSON* json_currently_icon = cJSON_GetObjectItemCaseSensitive(json_currently, "icon");
-    if (cJSON_IsString(json_currently_icon) && (json_currently_icon->valuestring != NULL)) {
-        sprintf(icon, "%s", json_currently_icon->valuestring);
-    }
-
-    cJSON* json_currently_temperature = cJSON_GetObjectItemCaseSensitive(json_currently, "temperature");
-    if (cJSON_IsNumber(json_currently_temperature)) {
-        temperature = json_currently_temperature->valuedouble;
-    }
-
-    cJSON* json_currently_humidity = cJSON_GetObjectItemCaseSensitive(json_currently, "humidity");
-    if (cJSON_IsNumber(json_currently_humidity)) {
-        humidity = json_currently_humidity->valuedouble;
-    }
-
-    cJSON* json_currently_pressure = cJSON_GetObjectItemCaseSensitive(json_currently, "pressure");
-    if (cJSON_IsNumber(json_currently_pressure)) {
-        pressure = json_currently_pressure->valuedouble;
-    }
-
-    cJSON* json_currently_wind_speed = cJSON_GetObjectItemCaseSensitive(json_currently, "windSpeed");
-    if (cJSON_IsNumber(json_currently_wind_speed)) {
-        wind_speed = json_currently_wind_speed->valuedouble;
-    }
-
-    cJSON* json_currently_wind_bearing = cJSON_GetObjectItemCaseSensitive(json_currently, "windBearing");
-    if (cJSON_IsNumber(json_currently_wind_bearing)) {
-        wind_bearing = json_currently_wind_bearing->valuedouble;
-    }
-
-    cJSON* json_currently_precip_probability = cJSON_GetObjectItemCaseSensitive(json_currently, "precipProbability");
-    if (cJSON_IsNumber(json_currently_precip_probability)) {
-        precip_probability = json_currently_precip_probability->valuedouble;
-    }
-
-    // Get the forecast weather data from the daily object
-    cJSON* json_daily = cJSON_GetObjectItemCaseSensitive(json, "daily");
-    cJSON* json_daily_data = cJSON_GetObjectItemCaseSensitive(json_daily, "data");
-    cJSON* json_daily_data_x = NULL;
-    uint8_t q = 0;
-    cJSON_ArrayForEach(json_daily_data_x, json_daily_data)
-    {
-        cJSON* json_daily_data_x_time = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "time");
-
-        if (cJSON_IsNumber(json_daily_data_x_time)) {
-            forecasts[q].time = (long int)json_daily_data_x_time->valueint;
-        }
-
-        cJSON* json_daily_data_x_summary = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "summary");
-
-        if (cJSON_IsString(json_daily_data_x_summary) && (json_daily_data_x_summary->valuestring != NULL)) {
-            sprintf(forecasts[q].summary, "%s", json_daily_data_x_summary->valuestring);
-        }
-
-        cJSON* json_daily_data_x_icon = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "icon");
-
-        if (cJSON_IsString(json_daily_data_x_icon) && (json_daily_data_x_icon->valuestring != NULL)) {
-            sprintf(forecasts[q].icon, "%s", json_daily_data_x_icon->valuestring);
-        }
-
-        cJSON* json_daily_data_x_temperature_max = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "temperatureMax");
-        if (cJSON_IsNumber(json_daily_data_x_temperature_max)) {
-            forecasts[q].temperatureMax = json_daily_data_x_temperature_max->valuedouble;
-        }
-
-        cJSON* json_daily_data_x_temperature_min = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "temperatureMin");
-        if (cJSON_IsNumber(json_daily_data_x_temperature_min)) {
-            forecasts[q].temperatureMin = json_daily_data_x_temperature_min->valuedouble;
-        }
-
-        cJSON* json_daily_data_x_humidity = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "humidity");
-        if (cJSON_IsNumber(json_daily_data_x_humidity)) {
-            forecasts[q].humidity = json_daily_data_x_humidity->valuedouble;
-        }
-
-        cJSON* json_daily_data_x_pressure = cJSON_GetObjectItemCaseSensitive(json_daily_data_x, "pressure");
-        if (cJSON_IsNumber(json_daily_data_x_pressure)) {
-            forecasts[q].pressure = json_daily_data_x_pressure->valuedouble;
-        }
-
-        q++;
-    }
-
-    vTaskDelete(NULL);
+    https_get(web_url, web_req, resp_buf);
+    return seniverse_parse_resp(type, resp_buf, data, count);
 }
