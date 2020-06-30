@@ -80,19 +80,49 @@ int seniverse_get_url_api(enum SENIVERSE_WEATHER_DATA_TYPE type, char *url, int 
 int seniverse_parse_resp(enum SENIVERSE_WEATHER_DATA_TYPE type, const char *buf, void *data, int *count)
 {
     int ret = 0;
+
+    if(strstr(buf, "\"results\"") != NULL) {
+        switch(type) {
+            case SENIVERSE_WEATHER_NOW:
+                ret = parse_weather_now(buf, (struct weather_now *)data);
+                *count = 1;
+                break;
+            case SENIVERSE_WEATHER_DAILY:
+                ret = parse_weather_daily(buf, (struct weather_daily *)data, count);
+                break;
+            case SENIVERSE_WEATHER_HOURLY:
+                ret = parse_weather_hourly(buf, (struct weather_hourly *)data, count);
+                break;
+            default:
+                SENIVERSE_LOGE(LOG_TAG, "Unknown type of response.");
+                ret = -1;
+                break;
+        }
+    } else if (strstr(buf, "\"status\"") != NULL) {
+        parse_seniverse_status(buf);
+        ret = -1;
+    } else {
+        ret = -1;
+    }
+
+    return ret;
+}
+
+int seniverse_data_dump(enum SENIVERSE_WEATHER_DATA_TYPE type, void *data, int count)
+{
+    int ret = 0;
     switch(type) {
         case SENIVERSE_WEATHER_NOW:
-            ret = parse_weather_now(buf, (struct weather_now *)data);
-            *count = 1;
+            ret = dump_weather_now((struct weather_now *)data);
             break;
         case SENIVERSE_WEATHER_DAILY:
-            ret = parse_weather_daily(buf, (struct weather_daily *)data, count);
+            ret = dump_weather_daily((struct weather_daily *)data);
             break;
         case SENIVERSE_WEATHER_HOURLY:
-            ret = parse_weather_hourly(buf, (struct weather_hourly *)data, count);
+            ret = dump_weather_hourly((struct weather_hourly *)data);
             break;
         default:
-            SENIVERSE_LOGE(LOG_TAG, "Unknown type of response.");
+            SENIVERSE_LOGE(LOG_TAG, "Unknown type of data to dump.");
             ret = -1;
             break;
     }

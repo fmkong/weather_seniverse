@@ -36,6 +36,7 @@ struct weather_daily {
 
 int parse_weather_daily(const char *buf, struct weather_daily *daily, int *count);
 int weather_daily_get_url_api(char *url, int url_max_len, char *key, char *location, enum SENIVERSE_LANGUAGE_TYPE language, enum SENIVERSE_UNIT_TYPE unit, int start, int count);
+int dump_weather_daily(const struct weather_daily *daily);
 
 #ifdef __cplusplus
 }

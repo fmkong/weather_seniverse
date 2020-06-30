@@ -23,3 +23,15 @@ int parse_weather_location(cJSON *location_obj, struct weather_location *locatio
 
     return 0;
 }
+
+int dump_weather_location(const struct weather_location *location)
+{
+    SENIVERSE_LOGD(LOG_TAG, "location:");
+    SENIVERSE_LOGD(LOG_TAG, "\t id: %s", location->id);
+    SENIVERSE_LOGD(LOG_TAG, "\t name: %s", location->name);
+    SENIVERSE_LOGD(LOG_TAG, "\t country: %s", location->country);
+    SENIVERSE_LOGD(LOG_TAG, "\t path: %s", location->path);
+    SENIVERSE_LOGD(LOG_TAG, "\t timezone: %s", location->timezone);
+    SENIVERSE_LOGD(LOG_TAG, "\t timezone_offset: %s", location->timezone_offset);
+    return 0;
+}

@@ -21,6 +21,7 @@ struct weather_location {
 };
 
 int parse_weather_location(cJSON *location_obj, struct weather_location *location);
+int dump_weather_location(const struct weather_location *location);
 
 #ifdef __cplusplus
 }

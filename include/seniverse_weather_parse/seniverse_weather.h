@@ -11,6 +11,7 @@ extern "C"
 #include "seniverse_weather_now.h"
 #include "seniverse_weather_daily.h"
 #include "seniverse_weather_hourly.h"
+#include "seniverse_status.h"
 
 struct seniverse_weather_obj {
     union {
@@ -27,6 +28,7 @@ void destroy_weather_data(struct seniverse_weather_obj *data);
 
 int seniverse_get_url_api(enum SENIVERSE_WEATHER_DATA_TYPE type, char *url, int url_max_len, char *key, char *location, enum SENIVERSE_LANGUAGE_TYPE language, enum SENIVERSE_UNIT_TYPE unit, int start, int count);
 int seniverse_parse_resp(enum SENIVERSE_WEATHER_DATA_TYPE type, const char *buf, void *data, int *count);
+int seniverse_data_dump(enum SENIVERSE_WEATHER_DATA_TYPE type, void *data, int count);
 
 #ifdef __cplusplus
 }

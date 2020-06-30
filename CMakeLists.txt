@@ -6,9 +6,10 @@ set(COMPONENT_ADD_INCLUDEDIRS
 set(COMPONENT_SRCS
     src/seniverse.c
     src/seniverse_weather_parse/seniverse_cJson_utils.c
-    src/seniverse_weather_parse/seniverse_weather_now.c
+    src/seniverse_weather_parse/seniverse_status.c
     src/seniverse_weather_parse/seniverse_weather_location.c
     src/seniverse_weather_parse/seniverse_weather.c
+    src/seniverse_weather_parse/seniverse_weather_now.c
     src/seniverse_weather_parse/seniverse_weather_daily.c
     src/seniverse_weather_parse/seniverse_weather_hourly.c
     )

@@ -29,6 +29,7 @@ struct weather_hourly {
 
 int parse_weather_hourly(const char *buf, struct weather_hourly *hourly, int *count);
 int weather_hourly_get_url_api(char *url, int url_max_len, char *key, char *location, enum SENIVERSE_LANGUAGE_TYPE language, enum SENIVERSE_UNIT_TYPE unit, int start, int count);
+int dump_weather_hourly(const struct weather_hourly *hourly);
 
 #ifdef __cplusplus
 }

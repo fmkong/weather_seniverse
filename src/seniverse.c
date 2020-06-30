@@ -35,26 +35,27 @@ static const char* TAG = "seniverse";
 extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const uint8_t server_root_cert_pem_end[] asm("_binary_server_root_cert_pem_end");
 
-static void https_get(const char* url, const char* request, char* buf)
+static int https_get(const char* url, const char* request, char* buf)
 {
     int ret, len;
 
     /* Wait for the callback to set the CONNECTED_BIT in the event group. */
     // xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
-    ESP_LOGI(TAG, "Connected to url: %s, request: %s", url, request);
+    ESP_LOGV(TAG, "Connected to url: %s, request: %s", url, request);
     esp_tls_cfg_t cfg = {
         .cacert_pem_buf = server_root_cert_pem_start,
         .cacert_pem_bytes = server_root_cert_pem_end - server_root_cert_pem_start,
         .skip_common_name = true,
     };
 
-    ESP_LOGI(TAG, "CA: %s, len %d", cfg.cacert_pem_buf, cfg.cacert_bytes);
+    ESP_LOGV(TAG, "CA: %s, len %d", cfg.cacert_pem_buf, cfg.cacert_bytes);
     struct esp_tls* tls = esp_tls_conn_http_new(url, &cfg);
 
     if (tls != NULL) {
         ESP_LOGI(TAG, "Connection established...");
     } else {
         ESP_LOGE(TAG, "Connection failed...");
+        ret = -1;
         goto exit;
     }
 
@@ -62,7 +63,7 @@ static void https_get(const char* url, const char* request, char* buf)
     do {
         ret = esp_tls_conn_write(tls, request + written_bytes, strlen(request) - written_bytes);
         if (ret >= 0) {
-            ESP_LOGI(TAG, "%d bytes written", ret);
+            ESP_LOGD(TAG, "%d bytes written", ret);
             written_bytes += ret;
         } else if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
             ESP_LOGE(TAG, "esp_tls_conn_write  returned 0x%x", ret);
@@ -95,7 +96,7 @@ static void https_get(const char* url, const char* request, char* buf)
         }
 
         len = ret;
-        ESP_LOGD(TAG, "%d bytes read", len);
+        ESP_LOGV(TAG, "%d bytes read", len);
 
         for (int i = 0; i < len; i++) {
             buf[i + offset] = tmp_buf[i];
@@ -109,6 +110,7 @@ static void https_get(const char* url, const char* request, char* buf)
 exit:
     if (tls)
         esp_tls_conn_delete(tls);
+    return ret;
 }
 
 int seniverse_get_weather(enum SENIVERSE_WEATHER_DATA_TYPE type, char *location,
@@ -139,6 +141,10 @@ int seniverse_get_weather(enum SENIVERSE_WEATHER_DATA_TYPE type, char *location,
         return -1;
     }
 
-    https_get(web_url, web_req, resp_buf);
+    int ret = 0;
+    ret = https_get(web_url, web_req, resp_buf);
+    if (ret < 0)
+        return ret;
+
     return seniverse_parse_resp(type, resp_buf, data, count);
 }

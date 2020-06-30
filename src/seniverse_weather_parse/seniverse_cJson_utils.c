@@ -29,7 +29,7 @@ int parse_object_string_value(cJSON *obj, char *key, char *value, int len)
         if (value)
             snprintf(value, len, "%s", obj_item->valuestring);
     } else {
-        SENIVERSE_LOGD(LOG_TAG, "Error in get item %s: [%s]", key, cJSON_GetErrorPtr() == NULL ? "NULL" : cJSON_GetErrorPtr());
+        SENIVERSE_LOGD(LOG_TAG, "Error in get item %s: [%s]", key, IS_NULL(cJSON_GetErrorPtr()));
         return -1;
     }
     return 0;
